@@ -1,0 +1,50 @@
+services:
+  webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laravel-otel-app
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      - db
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
+    networks:
+      - internal
+
+  db:
+    image: mysql:8.0
+    container_name: laravel-otel-db
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: shortener
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: secret
+    volumes:
+      - dbdata:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - internal
+      
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: laravel-otel-phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_USER: laravel
+      PMA_PASSWORD: secret
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    networks:
+      - internal
+volumes:
+  dbdata:
+
+networks:
+  internal:
