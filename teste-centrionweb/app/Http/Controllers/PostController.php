@@ -5,17 +5,18 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Models\Post;
+use App\Http\Resources\PostResource;
 
 class PostController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index(): JsonResponse
+    public function index()
     {
         $posts = Post::all();
 
-        return response ()->json($posts);
+        return PostResource::collection($posts);
     }
 
     /**
