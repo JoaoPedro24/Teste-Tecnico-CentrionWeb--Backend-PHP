@@ -60,11 +60,14 @@ class SyncPosts extends Command
             }
 
             foreach ($data as $postData) {
-                \App\Models\Post::create([
-                    'userId' => $postData['userId'],
-                    'title'  => $postData['title'],
-                    'body'   => $postData['body'],
-                ]);
+                \App\Models\Post::updateOrCreate(
+                    ['id' => $postData['id']],
+                    [
+                        'userId' => $postData['userId'],
+                        'title' => $postData['title'],
+                        'body' => $postData['body'],
+                    ]
+                );
             }
 
             $this->info('Posts sincronizados com sucesso!');
