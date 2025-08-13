@@ -4,8 +4,10 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\RequestException;
 
-class syncPosts extends Command
+class SyncPosts extends Command
 {
     /**
      * The name and signature of the console command.
@@ -21,16 +23,14 @@ class syncPosts extends Command
      */
     protected $description = 'Sincroniza os posts da API externa com o banco de dados.';
 
-     private Client $client;
+    private Client $client;
 
     public function __construct()
     {
         parent::__construct();
 
-        // Inicializa o Guzzle Client com base URI
         $this->client = new Client([
-            'base_uri' => 'https://jsonplaceholder.typicode.com/',
-            'timeout'  => 10.0,
+            'base_uri' => 'https://jsonplaceholder.typicode.com/'
         ]);
     }
 
@@ -39,31 +39,51 @@ class syncPosts extends Command
      */
     public function handle()
     {
-            try {
-                $response = $this->client->get('posts');
+        try {
+            $response = $this->client->get('posts');
 
-                $data = json_decode($response->getBody()->getContents(), true);
-                
-                foreach ($data as $postData) {
-                    \App\Models\Post::Create(
-                        [
-                            'userId' => $postData['userId'],
-                            'title' => $postData['title'],
-                            'body' => $postData['body'],
-                        ]
-                    );
-                }
-
-                $this->info('Posts sincronizados com sucesso!');
-
-            
-
-            } catch (\GuzzleHttp\Exception\RequestException $e) {
-                $this->error('Error fetching data: ' . $e->getMessage());
-                if ($e->hasResponse()) {
-                    $this->error('Response body: ' . $e->getResponse()->getBody()->getContents());
-                }
+            if ($response->getStatusCode() !== 200) {
+                $this->error('Erro: status HTTP inesperado ' . $response->getStatusCode());
+                return 1;
             }
+
+            $data = json_decode($response->getBody()->getContents(), true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $this->error('Erro ao decodificar JSON: ' . json_last_error_msg());
+                return 1;
+            }
+
+            if (empty($data)) {
+                $this->error('Nenhum post encontrado na API externa.');
+                return 404;
+            }
+
+            foreach ($data as $postData) {
+                \App\Models\Post::create([
+                    'userId' => $postData['userId'],
+                    'title'  => $postData['title'],
+                    'body'   => $postData['body'],
+                ]);
+            }
+
+            $this->info('Posts sincronizados com sucesso!');
+            return 0;
+
+        } catch (ConnectException $e) {
+            $this->error('Erro de conexão com a API externa: ' . $e->getMessage());
+            return 1;
+
+        } catch (RequestException $e) {
+            $this->error('Erro na requisição da API externa: ' . $e->getMessage());
+            if ($e->hasResponse()) {
+                $this->error('Resposta da API: ' . $e->getResponse()->getBody()->getContents());
+            }
+            return 1;
+
+        } catch (\Exception $e) {
+            $this->error('Erro inesperado: ' . $e->getMessage());
+            return 1;
         }
     }
-
+}
